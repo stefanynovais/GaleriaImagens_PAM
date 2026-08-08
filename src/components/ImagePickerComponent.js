@@ -23,19 +23,19 @@ const ImagePickerComponent = () => {
 
     // Abre a galeria para seleção de imagem
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, // Apenas imagens
+      mediaTypes: ['images'], // Apenas imagens
       allowsEditing: true, // Permite edição básica
       quality: 1, // Qualidade da imagem (1 é a melhor)
     });
 
     // Verifica se o usuário cancelou a operação
-    if (result.cancelled) {
+    if (result.canceled) {
       Alert.alert('Operação Cancelada', 'Você cancelou a seleção de imagem.');
       return;
     }
 
     // Define a URI da imagem selecionada no estado
-    setImageUri(result.uri);
+    setImageUri(result.assets[0].uri);
   };
 
   return (
