@@ -1,60 +1,159 @@
 // src/components/ContactsComponent.js
 
 // Importa as bibliotecas necessárias
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Button, Alert, StyleSheet } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  Button,
+  Alert,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import * as Contacts from 'expo-contacts';
 import { FontAwesome } from '@expo/vector-icons';
 
+// Quantidade de contatos carregados por página (scroll infinito)
+const PAGE_SIZE = 50;
+// Tempo de debounce (ms) antes de disparar a busca nativa por nome,
+// evitando uma consulta a cada tecla digitada.
+const DEBOUNCE_BUSCA_MS = 400;
+
 // Define o componente funcional
 const ContactsComponent = () => {
-  // Estado para armazenar os contatos
+  // Estado para armazenar os contatos carregados até o momento
   const [contacts, setContacts] = useState([]);
+  // Texto digitado no campo de busca
+  const [searchText, setSearchText] = useState('');
+  // Indica carregamento inicial (primeira página)
+  const [loadingInicial, setLoadingInicial] = useState(false);
+  // Indica carregamento de mais páginas (scroll infinito)
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Indica se ainda há mais contatos para carregar
+  const [hasMore, setHasMore] = useState(true);
+  // Indica se a permissão de contatos já foi concedida
+  const [permissaoConcedida, setPermissaoConcedida] = useState(false);
 
-  // Função para solicitar permissão e carregar contatos
-  const loadContacts = async () => {
-    // Solicita permissão para acessar contatos
+  // Referência para o timer de debounce da busca
+  const debounceRef = useRef(null);
+  // Evita chamadas concorrentes de paginação
+  const carregandoRef = useRef(false);
+
+  // Solicita a permissão de acesso aos contatos (uma única vez)
+  const solicitarPermissao = async () => {
     const { status } = await Contacts.requestPermissionsAsync();
 
-    // Verifica se a permissão foi concedida
     if (status !== 'granted') {
       Alert.alert('Permissão Negada', 'Permissão para acessar contatos foi negada.');
+      return false;
+    }
+
+    setPermissaoConcedida(true);
+    return true;
+  };
+
+  // Busca uma página de contatos direto na consulta nativa,
+  // já filtrando por nome quando houver texto de busca (pageOffset + pageSize
+  // evitam carregar os mais de 5.000 registros de uma vez).
+  const buscarPagina = async ({ offset, nomeFiltro }) => {
+    const { data, hasNextPage } = await Contacts.getContactsAsync({
+      fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
+      pageSize: PAGE_SIZE,
+      pageOffset: offset,
+      sort: Contacts.SortTypes.FirstName,
+      name: nomeFiltro || undefined, // filtro nativo por nome, quando houver
+    });
+
+    return { data, hasNextPage };
+  };
+
+  // Carrega a primeira página (reset completo), usada no mount e a cada busca
+  const carregarPrimeiraPagina = useCallback(async (nomeFiltro = '') => {
+    if (carregandoRef.current) return;
+    carregandoRef.current = true;
+
+    let temPermissao = permissaoConcedida;
+    if (!temPermissao) {
+      temPermissao = await solicitarPermissao();
+    }
+
+    if (!temPermissao) {
+      carregandoRef.current = false;
       return;
     }
 
-    try {
-      // Obtém todos os contatos do dispositivo
-      const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-      });
+    setLoadingInicial(true);
 
-      // Verifica se há contatos
-      if (data.length > 0) {
-        setContacts(data); // Atualiza o estado com os contatos obtidos
-      } else {
-        Alert.alert('Sem Contatos', 'Nenhum contato encontrado.');
-      }
+    try {
+      const { data, hasNextPage } = await buscarPagina({ offset: 0, nomeFiltro });
+      setContacts(data);
+      setHasMore(hasNextPage);
     } catch (error) {
-      // Trata possíveis erros na obtenção dos contatos
+      // Degradação graciosa: nunca deixa o app quebrar por erro no acesso aos contatos
       Alert.alert('Erro', 'Ocorreu um erro ao carregar os contatos.');
       console.error(error);
+    } finally {
+      setLoadingInicial(false);
+      carregandoRef.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissaoConcedida]);
+
+  // Carrega a próxima página e concatena ao final da lista (scroll infinito)
+  const carregarProximaPagina = useCallback(async () => {
+    if (carregandoRef.current || !hasMore || loadingInicial) return;
+    carregandoRef.current = true;
+    setLoadingMore(true);
+
+    try {
+      const { data, hasNextPage } = await buscarPagina({
+        offset: contacts.length,
+        nomeFiltro: searchText,
+      });
+      setContacts((prev) => [...prev, ...data]);
+      setHasMore(hasNextPage);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingMore(false);
+      carregandoRef.current = false;
+    }
+  }, [contacts.length, hasMore, loadingInicial, searchText]);
+
+  // Dispara a busca com debounce toda vez que o texto digitado muda
+  const onChangeSearchText = (texto) => {
+    setSearchText(texto);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      carregarPrimeiraPagina(texto);
+    }, DEBOUNCE_BUSCA_MS);
   };
 
-  // Executa a função de carregar contatos quando o componente é montado
+  // Carrega a primeira página assim que o componente monta
   useEffect(() => {
-    loadContacts();
+    carregarPrimeiraPagina('');
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Função para renderizar cada item da lista de contatos
-  const renderItem = ({ item }) => (
+  // Função para renderizar cada item da lista de contatos.
+  // Memorizada com useCallback para não recriar a função a cada render
+  // (ajuda o FlatList a reaproveitar componentes e evitar lag/vazamento).
+  const renderItem = useCallback(({ item }) => (
     <View style={styles.contactItem}>
-      {/* Nome completo do contato */}
       <Text style={styles.contactName}>
         {item.firstName} {item.lastName}
       </Text>
 
-      {/* Lista de números de telefone do contato, agora com ícone */}
       {item.phoneNumbers && item.phoneNumbers.map((phone, index) => (
         <View key={index} style={styles.contactDetailContainer}>
           <FontAwesome name="phone" size={16} color="#555" style={styles.icon} />
@@ -62,7 +161,6 @@ const ContactsComponent = () => {
         </View>
       ))}
 
-      {/* Lista de emails do contato, agora com ícone */}
       {item.emails && item.emails.map((email, index) => (
         <View key={index} style={styles.contactDetailContainer}>
           <FontAwesome name="envelope" size={16} color="#555" style={styles.icon} />
@@ -70,21 +168,55 @@ const ContactsComponent = () => {
         </View>
       ))}
     </View>
-  );
+  ), []);
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footer}>
+        <ActivityIndicator size="small" />
+        <Text style={styles.footerText}>Carregando mais contatos...</Text>
+      </View>
+    );
+  };
 
   return (
-    // Contêiner principal com estilo de preenchimento
     <View style={styles.container}>
-      {/* Botão para recarregar os contatos manualmente */}
-      <Button title="Recarregar Contatos" onPress={loadContacts} />
+      <View style={styles.headerRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por nome..."
+          value={searchText}
+          onChangeText={onChangeSearchText}
+          autoCorrect={false}
+        />
+        <Button title="Recarregar" onPress={() => carregarPrimeiraPagina(searchText)} />
+      </View>
 
-      {/* Lista de contatos exibida usando FlatList */}
-      <FlatList
-        data={contacts} // Dados da lista
-        keyExtractor={(item) => item.id} // Chave única para cada item
-        renderItem={renderItem} // Função para renderizar cada item
-        contentContainerStyle={styles.list} // Estilo do conteúdo da lista
-      />
+      {loadingInicial ? (
+        <ActivityIndicator style={styles.loadingInicial} size="large" />
+      ) : (
+        <FlatList
+          data={contacts}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          onEndReached={carregarProximaPagina}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={
+            <Text style={styles.vazio}>Nenhum contato encontrado.</Text>
+          }
+          // Configurações de performance/memória para listas grandes (>5.000 registros):
+          removeClippedSubviews // desmonta itens fora da tela, liberando memória
+          initialNumToRender={15}
+          maxToRenderPerBatch={20}
+          windowSize={10}
+          updateCellsBatchingPeriod={50}
+        />
+      )}
     </View>
   );
 };
@@ -92,33 +224,64 @@ const ContactsComponent = () => {
 // Define os estilos utilizados no componente
 const styles = StyleSheet.create({
   container: {
-    flex: 1, // Ocupa todo o espaço disponível
-    padding: 20, // Espaçamento interno
-    backgroundColor: '#fff', // Cor de fundo branca
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 10,
   },
   list: {
-    marginTop: 20, // Espaçamento acima da lista
+    marginTop: 20,
+  },
+  loadingInicial: {
+    marginTop: 40,
+  },
+  vazio: {
+    marginTop: 20,
+    textAlign: 'center',
+    color: '#777',
+  },
+  footer: {
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  footerText: {
+    marginTop: 5,
+    fontSize: 12,
+    color: '#777',
   },
   contactItem: {
-    padding: 15, // Espaçamento interno
-    borderBottomWidth: 1, // Linha de separação inferior
-    borderColor: '#eee', // Cor da linha de separação
+    padding: 15,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
   },
   contactName: {
-    fontSize: 18, // Tamanho da fonte
-    fontWeight: 'bold', // Peso da fonte
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   contactDetailContainer: {
-    flexDirection: 'row', // Alinha ícone e texto na horizontal
-    alignItems: 'center', // Alinha verticalmente ao centro
-    marginTop: 5, // Espaçamento acima
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
   },
   contactDetail: {
-    fontSize: 14, // Tamanho da fonte
-    color: '#555', // Cor do texto
+    fontSize: 14,
+    color: '#555',
   },
   icon: {
-    marginRight: 10, // Espaçamento entre o ícone e o texto
+    marginRight: 10,
   },
 });
 

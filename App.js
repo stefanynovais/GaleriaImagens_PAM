@@ -4,11 +4,13 @@ import React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import ImagePickerComponent from './src/components/ImagePickerComponent';
 import ContactsComponent from './src/components/ContactsComponent';
+import AuditClosureComponent from './src/components/AuditClosureComponent';
 
 const App = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ImagePickerComponent />
+      <AuditClosureComponent />
       <ContactsComponent />
     </SafeAreaView>
   );

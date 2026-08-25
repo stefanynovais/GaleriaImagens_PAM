@@ -7,7 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Precisamos da câmera para capturar fotos da visita técnica.",
+        "NSPhotoLibraryUsageDescription": "Precisamos acessar sua galeria para anexar imagens à visita técnica."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -15,10 +19,20 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Precisamos acessar sua galeria para anexar imagens à visita técnica.",
+          "cameraPermission": "Precisamos da câmera para capturar fotos da visita técnica."
+        }
+      ]
+    ]
   }
 }
