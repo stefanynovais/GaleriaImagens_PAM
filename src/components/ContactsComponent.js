@@ -7,13 +7,14 @@ import {
   Text,
   FlatList,
   TextInput,
-  Button,
+  TouchableOpacity,
   Alert,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import { FontAwesome } from '@expo/vector-icons';
+import { colors, spacing, radius, typography, cardShadow } from '../theme';
 
 // Quantidade de contatos carregados por página (scroll infinito)
 const PAGE_SIZE = 50;
@@ -148,27 +149,37 @@ const ContactsComponent = () => {
   // Função para renderizar cada item da lista de contatos.
   // Memorizada com useCallback para não recriar a função a cada render
   // (ajuda o FlatList a reaproveitar componentes e evitar lag/vazamento).
-  const renderItem = useCallback(({ item }) => (
-    <View style={styles.contactItem}>
-      <Text style={styles.contactName}>
-        {item.firstName} {item.lastName}
-      </Text>
+  const renderItem = useCallback(({ item }) => {
+    const iniciais = `${item.firstName?.[0] ?? ''}${item.lastName?.[0] ?? ''}`.toUpperCase();
 
-      {item.phoneNumbers && item.phoneNumbers.map((phone, index) => (
-        <View key={index} style={styles.contactDetailContainer}>
-          <FontAwesome name="phone" size={16} color="#555" style={styles.icon} />
-          <Text style={styles.contactDetail}>{phone.number}</Text>
+    return (
+      <View style={styles.contactItem}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarTexto}>{iniciais || '?'}</Text>
         </View>
-      ))}
 
-      {item.emails && item.emails.map((email, index) => (
-        <View key={index} style={styles.contactDetailContainer}>
-          <FontAwesome name="envelope" size={16} color="#555" style={styles.icon} />
-          <Text style={styles.contactDetail}>{email.email}</Text>
+        <View style={styles.contactInfo}>
+          <Text style={styles.contactName}>
+            {item.firstName} {item.lastName}
+          </Text>
+
+          {item.phoneNumbers && item.phoneNumbers.map((phone, index) => (
+            <View key={index} style={styles.contactDetailContainer}>
+              <FontAwesome name="phone" size={13} color={colors.textSecondary} style={styles.icon} />
+              <Text style={styles.contactDetail}>{phone.number}</Text>
+            </View>
+          ))}
+
+          {item.emails && item.emails.map((email, index) => (
+            <View key={index} style={styles.contactDetailContainer}>
+              <FontAwesome name="envelope" size={13} color={colors.textSecondary} style={styles.icon} />
+              <Text style={styles.contactDetail}>{email.email}</Text>
+            </View>
+          ))}
         </View>
-      ))}
-    </View>
-  ), []);
+      </View>
+    );
+  }, []);
 
   const keyExtractor = useCallback((item) => item.id, []);
 
@@ -184,19 +195,23 @@ const ContactsComponent = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
+      <View style={styles.searchBox}>
+        <FontAwesome name="search" size={15} color={colors.textSecondary} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar por nome..."
+          placeholderTextColor={colors.textSecondary}
           value={searchText}
           onChangeText={onChangeSearchText}
           autoCorrect={false}
         />
-        <Button title="Recarregar" onPress={() => carregarPrimeiraPagina(searchText)} />
+        <TouchableOpacity onPress={() => carregarPrimeiraPagina(searchText)} hitSlop={10}>
+          <FontAwesome name="refresh" size={16} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {loadingInicial ? (
-        <ActivityIndicator style={styles.loadingInicial} size="large" />
+        <ActivityIndicator style={styles.loadingInicial} size="large" color={colors.primary} />
       ) : (
         <FlatList
           data={contacts}
@@ -225,63 +240,86 @@ const ContactsComponent = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: spacing.lg,
+    backgroundColor: colors.background,
   },
-  headerRow: {
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    ...cardShadow,
+  },
+  searchIcon: {
+    marginTop: 1,
   },
   searchInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 10,
+    paddingVertical: spacing.sm + 2,
+    ...typography.body,
   },
   list: {
-    marginTop: 20,
+    marginTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
   loadingInicial: {
     marginTop: 40,
   },
   vazio: {
-    marginTop: 20,
+    marginTop: spacing.lg,
     textAlign: 'center',
-    color: '#777',
+    ...typography.subtitle,
   },
   footer: {
-    paddingVertical: 15,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   footerText: {
-    marginTop: 5,
-    fontSize: 12,
-    color: '#777',
+    marginTop: spacing.xs,
+    ...typography.caption,
   },
   contactItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+    ...cardShadow,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarTexto: {
+    color: colors.primaryDark,
+    fontWeight: '700',
+  },
+  contactInfo: {
+    flex: 1,
   },
   contactName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...typography.body,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   contactDetailContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: 3,
   },
   contactDetail: {
-    fontSize: 14,
-    color: '#555',
+    ...typography.caption,
   },
   icon: {
-    marginRight: 10,
+    marginRight: spacing.xs,
   },
 });
 

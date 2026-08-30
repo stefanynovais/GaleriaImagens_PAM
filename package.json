@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "54",
+    "expo-file-system": "~19.0.18",
     "expo-contacts": "~15.0.11",
     "expo-image-picker": "~17.0.11",
+    "expo-sensors": "~15.0.7",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
+    "react-native-safe-area-context": "~5.4.0",
     "react-native": "0.81.5"
   },
   "scripts": {
