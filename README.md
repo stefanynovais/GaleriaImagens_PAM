@@ -68,7 +68,7 @@ O app solicita, quando usado:
 
 ## 🎥 Vídeo de demonstração
 
-> _Link do vídeo (máx. 3 minutos):_ **[COLOQUE AQUI O LINK DO VÍDEO]**
+> _Link do vídeo:_ **[]**
 
 ## 📂 Estrutura do projeto
 
