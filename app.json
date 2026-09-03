@@ -20,7 +20,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,7 +35,8 @@
           "photosPermission": "Precisamos acessar sua galeria para anexar imagens à visita técnica.",
           "cameraPermission": "Precisamos da câmera para capturar fotos da visita técnica."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }
