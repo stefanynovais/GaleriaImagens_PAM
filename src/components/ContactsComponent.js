@@ -12,7 +12,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import * as Contacts from 'expo-contacts';
+import * as Contacts from 'expo-contacts/legacy';
 import { FontAwesome } from '@expo/vector-icons';
 import { colors, spacing, radius, typography, cardShadow } from '../theme';
 
